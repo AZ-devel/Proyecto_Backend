@@ -30,4 +30,5 @@ public partial class Usuario
     public virtual Role? IdRolPerNavigation { get; set; }
 
     public virtual ICollection<OrdenVentum> OrdenVenta { get; } = new List<OrdenVentum>();
+    public DateTime FechaModificacion { get; internal set; }
 }

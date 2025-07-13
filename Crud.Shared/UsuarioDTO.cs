@@ -21,5 +21,7 @@ namespace Crud.Shared
         public byte[]? Foto{ get; set; }
         public DateTime? FechaNacimiento { get; set; }
         public int? RolID { get; set; }
+        public string? PasswordActual { get; set; }
+        public string? ConfirmarPassword { get; set; }
     }
 }

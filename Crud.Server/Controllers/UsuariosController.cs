@@ -159,6 +159,112 @@ namespace Crud.Server.Controllers
         }
 
         [HttpPost]
+        [Route("ActualizarUsuarioContraseña")]
+        public async Task<IActionResult> ActualizarContraseña(CambiarPasswordDTO dto)
+        {
+            var responseApi = new ResponseAPI<bool>();
+            try
+            {
+                // Validar que las contraseñas coincidan
+                if (dto.Password != dto.ConfirmarPassword)
+                {
+                    responseApi.EsCorrecto = false;
+                    responseApi.Mensaje = "Las nuevas contraseñas no coinciden.";
+                    return Ok(responseApi);
+                }
+
+                // Buscar el usuario existente por UsuarioID
+                var buscarPorId = await _dbContext.Usuarios.FirstOrDefaultAsync(x => x.UsuarioId == dto.UsuarioID);
+
+                if (buscarPorId != null)
+                {
+                    // Verificar contraseña actual
+                    if (!BCrypt.Net.BCrypt.Verify(dto.PasswordActual, buscarPorId.Password))
+                    {
+                        responseApi.EsCorrecto = false;
+                        responseApi.Mensaje = "La contraseña actual es incorrecta.";
+                        var error = new ErrorLog();
+                        error.Tabla = "Usuarios";
+                        error.Error = responseApi.Mensaje;
+                        error.FechaHora = DateTime.Now;
+                        _dbContext.ErrorLogs.Add(error);
+                        await _dbContext.SaveChangesAsync();
+                        return Ok(responseApi);
+                    }
+
+                    // Verificar que no sea una contraseña ya usada
+                    var passwordsAnteriores = await _dbContext.HistorialPasswords
+                        .Where(h => h.UsuarioId == dto.UsuarioID)
+                        .Select(h => h.PasswordHash)
+                        .ToListAsync();
+
+                    foreach (var passwordAnterior in passwordsAnteriores)
+                    {
+                        if (BCrypt.Net.BCrypt.Verify(dto.Password, passwordAnterior))
+                        {
+                            responseApi.EsCorrecto = false;
+                            responseApi.Mensaje = "Ya has usado esta contraseña anteriormente. Elige una diferente.";
+                            var error = new ErrorLog();
+                            error.Tabla = "Usuarios";
+                            error.Error = responseApi.Mensaje;
+                            error.FechaHora = DateTime.Now;
+                            _dbContext.ErrorLogs.Add(error);
+                            await _dbContext.SaveChangesAsync();
+                            return Ok(responseApi);
+                        }
+                    }
+
+                    // Encriptar nueva contraseña
+                    var nuevaPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+
+                    // Actualizar contraseña
+                    buscarPorId.Password = nuevaPasswordHash;
+                    buscarPorId.FechaModificacion = DateTime.Now;
+
+                    await _dbContext.SaveChangesAsync();
+
+                    // Agregar al historial
+                    var historial = new HistorialPassword
+                    {
+                        UsuarioId = dto.UsuarioID,
+                        PasswordHash = nuevaPasswordHash,
+                        FechaCreacion = DateTime.Now
+                    };
+                    _dbContext.HistorialPasswords.Add(historial);
+                    await _dbContext.SaveChangesAsync();
+
+                    responseApi.EsCorrecto = true;
+                    responseApi.Valor = true;
+                    responseApi.Mensaje = "Contraseña actualizada exitosamente.";
+                }
+                else
+                {
+                    responseApi.EsCorrecto = false;
+                    responseApi.Mensaje = "Usuario no encontrado para actualizar.";
+                    var error = new ErrorLog();
+                    error.Tabla = "Usuarios";
+                    error.Error = responseApi.Mensaje;
+                    error.FechaHora = DateTime.Now;
+                    _dbContext.ErrorLogs.Add(error);
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                var error = new ErrorLog();
+                error.Tabla = "Usuarios";
+                error.Error = ex.Message;
+                error.FechaHora = DateTime.Now;
+                _dbContext.ErrorLogs.Add(error);
+                await _dbContext.SaveChangesAsync();
+
+                responseApi.EsCorrecto = false;
+                responseApi.Mensaje = ex.Message;
+            }
+            return Ok(responseApi);
+        }
+
+        [HttpPost]
         [Route("")]
         public async Task<IActionResult> ActualizarConFoto(UsuarioDTO usuario)
         {

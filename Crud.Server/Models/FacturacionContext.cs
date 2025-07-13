@@ -28,10 +28,12 @@ public partial class FacturacionContext : DbContext
     public virtual DbSet<Role> Roles { get; set; }
 
     public virtual DbSet<Usuario> Usuarios { get; set; }
+    public DbSet<HistorialPassword> HistorialPasswords { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=AKS; Database=facturacion; User Id=sa; Password=sa; TrustServerCertificate=true");
+    {
+        optionsBuilder.UseSqlServer("Server=ACERNITRO5\\SITIOZ; Database=facturacion; User Id=sa; Password=12345; TrustServerCertificate=true");
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -136,6 +138,24 @@ public partial class FacturacionContext : DbContext
             entity.HasOne(d => d.IdRolPerNavigation).WithMany(p => p.Usuarios)
                 .HasForeignKey(d => d.IdRolPer)
                 .HasConstraintName("FK_Usuarios_Roles");
+        });
+
+        modelBuilder.Entity<HistorialPassword>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("HistorialPassword");
+            entity.Property(e => e.UsuarioId).HasColumnName("idUsuario");
+            entity.Property(e => e.FechaCreacion).HasColumnType("date");
+            entity.Property(e => e.PasswordHash)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("password");
+            entity.Property(e => e.FechaCreacion).HasColumnType("datetime");
+            entity.HasOne<Usuario>()
+                    .WithMany()
+                    .HasForeignKey(d => d.UsuarioId)
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .HasConstraintName("FK_HistorialPassword_Usuarios");
         });
 
         OnModelCreatingPartial(modelBuilder);
